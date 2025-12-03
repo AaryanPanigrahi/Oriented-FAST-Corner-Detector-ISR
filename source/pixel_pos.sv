@@ -38,6 +38,30 @@ always_comb begin : UPDATE_PREV_EXP
         wrap_flag_prev_exp      = wrap_flag;
     end
 end
+
+////    ////    ////    ////    ////    ////    ////    ////    ////    ////    ////    ////
+logic new_trans_prev, new_trans_prev_exp;
+
+always_ff @(posedge clk, negedge n_rst) begin : UPDATE_TRANS_PREV
+    if (!n_rst) begin
+        new_trans_prev  <= 0;
+    end
+
+    else begin
+        new_trans_prev  <= new_trans_prev_exp;
+    end
+end
+
+always_comb begin : UPDATE_TRANS_PREV_EXP
+    new_trans_prev_exp  = new_trans_prev;
+
+    if (update_pos) begin
+        new_trans_prev_exp  = new_trans;
+    end
+end
+
+logic new_trans_info;
+assign new_trans_info = new_trans || new_trans_prev;
 ////    ////    ////    ////    ////    ////    ////    ////    ////    ////    ////    ////    
 
 ////    ////    ////    ////    ////    ////    ////    ////    ////    ////    ////    ////    
@@ -51,8 +75,8 @@ end
 logic y_update, x_update;
 
 always_comb begin : MODULE_UPDATES
-    y_update = update_pos && (new_flag && !old_flag) && !new_trans;
-    x_update = update_pos && !(new_flag && !old_flag);
+    y_update = update_pos && (new_flag && !old_flag) && !new_trans_info;
+    x_update = update_pos && (new_trans_info || !(new_flag && !old_flag));
 end
 ////    ////    ////    ////    ////    ////    ////    ////    ////    ////    ////    ////    
 
