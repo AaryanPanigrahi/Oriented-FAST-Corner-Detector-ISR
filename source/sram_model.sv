@@ -12,6 +12,8 @@ Adapted: Aaryan Panigrahi
 Date: 11/18/2025
 */
 
+`timescale 1ns / 10ps
+
 module sram_model #(
     parameter ADDR_WIDTH = 18,
     parameter DATA_WIDTH = 32,
@@ -24,22 +26,7 @@ module sram_model #(
     output logic [DATA_WIDTH-1:0] rdat
 );
 
-bit [DATA_WIDTH-1:0] ram [2**ADDR_WIDTH];
-
-////    ////    ////    ////    ////    ////    ////    ////    ////    //// 
-// Registering old write, old addr
-logic [ADDR_WIDTH-1:0] addr_prev;
-logic wen_prev;
-
-// RAW Handler
-if (RAM_IS_SYNCHRONOUS) begin
-    always_ff @(posedge ramclk) begin
-        // Registering
-        addr_prev <= addr;
-        wen_prev <= wen;
-    end
-end
-////    ////    ////    ////    ////    ////    ////    ////    ////    ////  
+bit [DATA_WIDTH-1:0] ram [2**ADDR_WIDTH]; 
 
 ////    ////    ////    ////    ////    ////    ////    ////    ////    //// 
 // WRITE
@@ -49,12 +36,14 @@ end
 
 // READ
 generate
-    if (RAM_IS_SYNCHRONOUS)
-        always_ff @(posedge ramclk) begin : READ_SYNC
+    if (RAM_IS_SYNCHRONOUS) begin : READ_SYNC
+        always_ff @(posedge ramclk) begin : READ_SYNC_FF
             rdat <= (ren) ? ram[addr] : 'x;
         end
-    else
+    end
+    else begin : READ_ASYNC
         assign rdat = (ren) ? ram[addr] : 'x;
+    end
 endgenerate
 ////    ////    ////    ////    ////    ////    ////    ////    ////    ////   
 
@@ -62,26 +51,6 @@ endgenerate
 // Helper Funtions
 function rmh(input string fname);
     $readmemh(fname, ram);    
-endfunction
-
-parameter IMG_COLOR_DEPTH = 8;
-parameter IMG_COLOR_CHANNELS = 1;                                   // only supports 1 channel right now
-localparam IMG_PX_PER_LINE = DATA_WIDTH / IMG_COLOR_DEPTH;          // single channel
-
-function memdump_img(input string fname, input int xdim, ydim);
-    int line_idx, px_in_line_idx;
-    bit [IMG_COLOR_DEPTH-1:0] out;
-
-    for (int y = 0; y < ydim; y++) begin
-        for (int x = 0; x < xdim; x++) begin
-
-            line_idx      = (y*xdim + x) / IMG_PX_PER_LINE;
-            px_in_line_idx= (y*xdim + x) % IMG_PX_PER_LINE;
-            out = ram[line_idx][IMG_COLOR_DEPTH*px_in_line_idx +: IMG_COLOR_DEPTH];
-            $display("%0d %0d %0h", x, y, out);
-            
-        end
-    end
 endfunction
 ////    ////    ////    ////    ////    ////    ////    ////    ////    ////    
 
