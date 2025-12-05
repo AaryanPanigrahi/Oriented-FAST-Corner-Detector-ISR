@@ -1,129 +1,57 @@
-`timescale 1ns/1ps
+/*
+name: sram_tb_model
+Description: 
+- Single port ram model for TB
+- No implementation of multi-cycle access
+- Seperate wires for input and ouput
+- By default synchronous
+- Dead simple, no timing, no banks :(
 
-module tb_sram_model;
+Author: Spencer Bowles
+Adapted: Aaryan Panigrahi
+Date: 11/18/2025
+*/
 
-    localparam ADDR_WIDTH = 8;
-    localparam DATA_WIDTH = 32;
+`timescale 1ns / 10ps
 
-    // Signals
-    logic                   clk;
-    logic [ADDR_WIDTH-1:0]  addr;
-    logic [DATA_WIDTH-1:0]  wdat;
-    logic                   wen, ren;
-    logic [DATA_WIDTH-1:0]  rdat;
+module sram_model #(
+    parameter ADDR_WIDTH = 18,
+    parameter DATA_WIDTH = 32,
+    parameter RAM_IS_SYNCHRONOUS = 1
+)(
+    input logic ramclk,                     // Acts as en/dis (if async) - no reset
+    input logic [ADDR_WIDTH-1:0] addr,
+    input logic wen, ren,
+    input logic [DATA_WIDTH-1:0] wdat,
+    output logic [DATA_WIDTH-1:0] rdat
+);
 
-    // DUT
-    sram_model #(
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .DATA_WIDTH(DATA_WIDTH),
-        .RAM_IS_SYNCHRONOUS(1)
-    ) DUT (
-        .ramclk (clk),
-        .addr   (addr),
-        .wdat   (wdat),
-        .wen    (wen),
-        .ren    (ren),
-        .rdat   (rdat)
-    );
+bit [DATA_WIDTH-1:0] ram [2**ADDR_WIDTH]; 
 
-    // Clk Gen - 100 Mhz
-    initial begin
-        clk = 0;
-        forever #5 clk = ~clk; 
+////    ////    ////    ////    ////    ////    ////    ////    ////    //// 
+// WRITE
+always_ff @(posedge ramclk) begin : WRITE
+    if (wen) ram[addr] <= wdat;
+end
+
+// READ
+generate
+    if (RAM_IS_SYNCHRONOUS) begin : READ_SYNC
+        always_ff @(posedge ramclk) begin : READ_SYNC_FF
+            rdat <= (ren) ? ram[addr] : 'x;
+        end
     end
-
-    // Simple tasks
-    task automatic do_write(input logic [ADDR_WIDTH-1:0] a,
-                            input logic [DATA_WIDTH-1:0] d);
-        @(posedge clk);
-        addr <= a;
-        wdat <= d;
-        wen  <= 1;
-        ren  <= 0;
-        @(posedge clk);
-        wen  <= 0;
-    endtask
-
-    task automatic do_read(input  logic [ADDR_WIDTH-1:0] a,
-                           output logic [DATA_WIDTH-1:0] q);
-        @(posedge clk);
-        addr <= a;
-        wen  <= 0;
-        ren  <= 1;
-        @(posedge clk);       
-        q = rdat;
-        ren <= 0;
-    endtask
-
-    // Aux
-    task wait_time(input int wait_t);
-        begin
-            repeat(wait_t) @(negedge clk);
-        end
-    endtask
-
-    task wait_ten;
-        begin
-            repeat(10) @(negedge clk);
-        end
-    endtask
-
-    task wait_fifty;
-        begin
-            repeat(50) @(negedge clk);
-        end
-    endtask
-
-    // Custom Vars
-    logic [DATA_WIDTH-1:0] q;               // Read Var
-
-    task init;
-    begin
-        addr = '0; 
-        wdat = '0; 
-        wen = 0; 
-        ren = 0;
-
-        // Custom
-        q = '0;         
+    else begin : READ_ASYNC
+        assign rdat = (ren) ? ram[addr] : 'x;
     end
-    endtask
+endgenerate
+////    ////    ////    ////    ////    ////    ////    ////    ////    ////   
 
-    // Test sequence
-    initial begin
-        init();
-
-        ////    ////    ////    ////    ////    ////
-        // Preload Mem
-        DUT.rmh("image/init_mem.hex");
-
-        // Read Loaded Data
-        for (int i = 0; i < 16; i++) begin
-            do_read(i, q);
-        end
-        ////    ////    ////    ////    ////    ////
-
-        ////    ////    ////    ////    ////    ////
-        // Write Check
-        for (int i = 0; i < 16; i++) begin
-            do_write(i, i*4);
-        end
-
-        // Read Check
-        for (int i = 0; i < 16; i++) begin
-            do_read(i, q);
-        end
-        ////    ////    ////    ////    ////    ////
-
-        ////    ////    ////    ////    ////    ////
-        // RAW Checker
-        do_write(8'h10, 32'hDEADBEEF);
-        do_read (8'h10, q);  
-        ////    ////    ////    ////    ////    ////
-
-        // End
-        wait_ten;
-        $finish;
-    end
+////    ////    ////    ////    ////    ////    ////    ////    ////    ////    
+// Helper Funtions
+function rmh(input string fname);
+    $readmemh(fname, ram);    
+endfunction
+////    ////    ////    ////    ////    ////    ////    ////    ////    ////    
 
 endmodule
