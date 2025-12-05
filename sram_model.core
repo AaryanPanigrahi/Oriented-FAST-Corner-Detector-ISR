@@ -7,17 +7,18 @@ filesets:
         files: []
         file_type: systemVerilogSource
 
-    # Testbench fileset includes the SRAM model and TB, and marks hex/user artifacts
+    # To only be synth in TB
     tb:
         files:
-            - "source/sram_model.sv"                  # TB-only behavioral model
-            - "testbench/tb_sram_model.sv"            # TB top
+            - "source/sram_model.sv"                  
+            - "testbench/tb_sram_model.sv"           
+
             - "waves/sram_model.do":  { file_type: user }
             - "waves/sram_model.gtkw": { file_type: user }
-            - "image/init_mem.hex":    { file_type: user }  # data file, not compiled
+            
+            - "image/init_mem.hex":    { file_type: user } 
         file_type: systemVerilogSource
 
-    # Synthesis dependencies (keep separate; do NOT include SRAM model here)
     synth:
         depend:
             - "ece337:tech:AMI_05_LIB"
@@ -72,7 +73,8 @@ targets:
                 verilator_options:
                     - --timing
                     - -Wall
-                    - -Wno-PINCONNECTEMPTY
+                    - -Wno-PINCONNECTEMPT
+                    - -Wno-GENUNNAMED
 
     syn:
         <<: *default
