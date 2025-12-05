@@ -29,11 +29,18 @@ module sram_image #(
     ////    ////    ////    ////    ////    ////    ////    ////    ////    ////    ////    ////
 
     ////    ////    ////    ////    ////    ////    ////    ////    ////    ////    ////    ////
+    logic ren_prev;
+    always_ff @(posedge ramclk) begin
+        ren_prev <= ren;
+    end
+
     // If addr out of bounds, ret 0 - else sram_rdat
     logic [PIXEL_DEPTH-1:0] sram_rdat;
-    assign rdat = ((x_addr > (x_max_eff)) || (y_addr > (y_max_eff))) ? '0 : sram_rdat;
+    always_comb begin
+            rdat = sram_rdat;
+            if (ren_prev && ((x_addr > x_max_eff) || (y_addr > y_max_eff))) rdat = '0;
+    end
 
-    
     sram_model #(.ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(PIXEL_DEPTH), .RAM_IS_SYNCHRONOUS(1)) IMAGE_DUT (
         .ramclk(ramclk), .addr(corr_addr), .wen(wen), .ren(ren), 
         .wdat(wdat), 
